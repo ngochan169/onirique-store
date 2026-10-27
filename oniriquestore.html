@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Onirique Store - Tiệm Len Handmade Xinh Xắn</title>
+    <!-- Thư viện Firebase Firestore (bản Compat chạy trực tiếp mượt mà) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, sans-serif; }
+        body { background-color: #fffaf0; color: #5a4633; padding-bottom: 50px; }
+
+        header { background: linear-gradient(135deg, #ffb5a7, #fcd5ce); color: #6b4c35; text-align: center; padding: 25px 15px; box-shadow: 0 4px 15px rgba(255, 181, 167, 0.3); position: relative; }
+        header h1 { font-size: 2.1rem; margin-bottom: 5px; color: #5c3a21; }
+        header p { font-size: 0.95rem; font-weight: 600; color: #8c583c; }
+
+        .admin-login-btn { position: absolute; top: 15px; right: 15px; background: rgba(255,255,255,0.8); border: none; padding: 6px 12px; border-radius: 15px; font-size: 0.85rem; font-weight: bold; color: #d87093; cursor: pointer; transition: 0.2s; }
+        .admin-login-btn:hover { background: white; color: #ff597b; }
+
+        .nav-tabs { display: flex; justify-content: center; background: #ff8fab; padding: 10px; gap: 8px; flex-wrap: wrap; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .nav-tabs button { background: rgba(255,255,255,0.3); color: #fff; border: none; padding: 10px 18px; border-radius: 20px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        .nav-tabs button.active, .nav-tabs button:hover { background: white; color: #ff597b; }
+        .admin-only { display: none; }
+
+        .container { max-width: 1000px; margin: 20px auto; padding: 0 15px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .section-title { font-size: 1.4rem; color: #d87093; margin-bottom: 15px; text-align: center; font-weight: bold; }
+        
+        .grid-products { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
+        .product-card { background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 15px rgba(255, 182, 193, 0.2); text-align: center; padding-bottom: 15px; border: 1px solid #ffe4e1; transition: transform 0.2s; }
+        .product-card:hover { transform: translateY(-4px); }
+        .product-card img { width: 100%; height: 180px; object-fit: cover; }
+        .product-card h3 { color: #6b4c35; margin: 10px 0 5px; font-size: 1.1rem; padding: 0 10px; }
+        .product-card p { color: #ff597b; font-weight: bold; font-size: 1.1rem; }
+        .btn-select { background: #ffb5a7; color: #5c3a21; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 10px; font-weight: bold; transition: 0.2s; }
+        .btn-select:hover { background: #ff8fab; color: white; }
+
+        .form-container { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 20px rgba(255, 182, 193, 0.2); border: 1px solid #ffe4e1; margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #6b4c35; font-size: 0.95rem; }
+        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 10px; border: 1px solid #ffccd5; border-radius: 8px; font-size: 1rem; outline: none; background: #fffdfd; }
+
+        .price-tag-highlight { font-size: 1.2rem; color: #d87093; font-weight: bold; background: #fff0f3; padding: 10px; border-radius: 8px; text-align: center; margin-top: 5px; border: 1px solid #ffccd5; }
+
+        .btn-main { width: 100%; background: #ff597b; color: white; padding: 12px; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 10px rgba(255, 89, 123, 0.3); }
+        .btn-main:hover { background: #ff4069; }
+
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.03); }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ffe4e1; font-size: 0.9rem; }
+        th { background: #ffb5a7; color: #5c3a21; }
+        .btn-danger { background: #ff6b6b; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btn-edit { background: #ffd166; color: #5c3a21; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-right: 5px; }
+        .btn-reset { background: #adb5bd; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+
+        .img-preview { width: 100px; height: 100px; object-fit: cover; border-radius: 8px; margin-top: 8px; display: none; border: 1px solid #ccc; }
+        .search-box-result { margin-top: 15px; background: #fff5f5; padding: 15px; border-radius: 8px; border: 1px solid #ffccd5; display: none; }
+        
+        .bell-shake { animation: shake 2s infinite; display: inline-block; }
+        @keyframes shake {
+            0%, 100% { transform: rotate(0deg); }
+            10%, 30% { transform: rotate(-15deg); }
+            20%, 40% { transform: rotate(15deg); }
+            50% { transform: rotate(0deg); }
+        }
+    </style>
+</head>
+<body onload="initApp()">
+
+    <header>
+        <button class="admin-login-btn" onclick="openAdminMode()">🔐 Quản Lý Shop</button>
+        <h1 id="displayShopName">🧶 Onirique Store 🧶</h1>
+        <p id="displayShopSub">Móc Khóa, Thú Bông Len, Hoa Len & Đồ Tự Móc Theo Yêu Cầu</p>
+    </header>
+
+    <!-- MENU TAB -->
+    <div class="nav-tabs">
+        <button id="btn-tab-home" class="active" onclick="switchTab('home')">🏠 Trang Chủ & Đặt Đồ</button>
+        <button id="btn-tab-orders" class="admin-only" onclick="switchTab('orders')">📋 Quản Lý Đơn (<span id="orderCount">0</span>)</button>
+        <button id="btn-tab-products" class="admin-only" onclick="switchTab('products')">🧶 Quản Lý Mẫu Len</button>
+        <button id="btn-tab-settings" class="admin-only" onclick="switchTab('settings')">⚙️ Cài Đặt Shop</button>
+    </div>
+
+    <div class="container">
+
+        <!-- TAB 1: TRANG CHỦ & ĐẶT ĐỒ -->
+        <div id="tab-home" class="tab-content active">
+            
+            <div class="form-container" style="background: #fff0f3; border-color: #ffb5a7; margin-bottom: 30px;">
+                <h3 style="color: #d87093; margin-bottom: 10px;">🔍 Tra Cứu Đơn Hàng Của Bạn</h3>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="searchCustomerPhone" placeholder="Nhập số điện thoại của bạn..." style="flex: 1;">
+                    <button class="btn-main" style="width: auto; padding: 0 20px;" onclick="searchMyOrder()">Tra cứu</button>
+                </div>
+                <div id="customerSearchResult" class="search-box-result"></div>
+            </div>
+
+            <h2 class="section-title">✨ Danh Sách Mẫu Đồ Len Handmade ✨</h2>
+            <div class="grid-products" id="product-list"></div>
+
+            <div class="form-container" id="order-section" style="margin-top: 30px;">
+                <h2 class="section-title" style="text-align: left;">💌 Phiếu Đặt Hàng Handmade</h2>
+                
+                <form id="handmadeOrderForm">
+                    <div class="form-group">
+                        <label>Mẫu sản phẩm đã chọn:</label>
+                        <input type="text" id="selectedProduct" placeholder="Bấm 'Chọn mẫu này' ở trên..." readonly style="background: #fff5f5; font-weight: bold; color: #d87093;">
+                    </div>
+                    <div class="form-group">
+                        <label>Chọn Màu Sắc Len Yêu Thích:</label>
+                        <input type="text" id="selectedColor" placeholder="Ví dụ: Hồng phấn phối trắng, vàng pastel..." required>
+                    </div>
+                    <div class="form-group">
+                        <label>Phân loại / Kích thước:</label>
+                        <select id="selectedSize" onchange="updatePriceDisplay()" required>
+                            <option value="Cỡ nhỏ / Móc khóa (10-12cm)">Cỡ nhỏ / Móc khóa (10-12cm)</option>
+                            <option value="Cỡ vừa (15-20cm)" selected>Cỡ vừa (15-20cm)</option>
+                            <option value="Cỡ lớn (30cm+ hoặc Ôm tay)">Cỡ lớn (30cm+ hoặc Ôm tay)</option>
+                        </select>
+                        <div class="price-tag-highlight" id="displayPrice">Tạm tính: Đang chọn mẫu</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Tên người nhận:</label>
+                        <input type="text" id="customerName" placeholder="Nhập tên của bạn" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Số điện thoại:</label>
+                        <input type="tel" id="customerPhone" placeholder="Nhập số điện thoại liên hệ" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Địa chỉ nhận hàng:</label>
+                        <input type="text" id="customerAddress" placeholder="Nhập địa chỉ nhận hàng chi tiết" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Yêu cầu riêng (Móc thêm nơ, đổi màu tai, thêu tên...):</label>
+                        <textarea id="customNotes" rows="2" placeholder="Ví dụ: Thêu chữ T&N lên áo gấu..."></textarea>
+                    </div>
+                    
+                    <!-- Khung thông báo của shop -->
+                    <div class="form-group">
+                        <div style="background: #FAF5FF; border-left: 6px solid #C084FC; color: #581C87; padding: 12px 16px; border-radius: 8px 16px 16px 8px; font-weight: bold; font-style: italic; font-size: 14px; line-height: 1.5;">
+                            <span class="bell-shake">🔔</span> 
+                            MỖI SẢN PHẨM SẼ CÓ THỜI GIAN HOÀN THÀNH KHÁC NHAU, KHÁCH IU HÃY TRA CỨU ĐƠN HÀNG HOẶC INBOX SHOP ĐỂ ĐƯỢC BÁO TIẾN ĐỘ SẢN PHẨM ĐÃ ĐẶT Ạ 💕 🐰 💬
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-main">🚀 GỬI ĐƠN HÀNG NGAY LẬP TỨC</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- TAB 2: QUẢN LÝ ĐƠN HÀNG -->
+        <div id="tab-orders" class="tab-content">
+            <h2 class="section-title">📋 Danh Sách Đơn Hàng (Quản Trị)</h2>
+            <div style="text-align: right; margin-bottom: 10px;">
+                <button class="btn-danger" onclick="clearAllOrders()">Xóa Tất Cả Đơn Hàng</button>
+            </div>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Thời Gian</th>
+                            <th>Khách Hàng</th>
+                            <th>Chi Tiết Sản Phẩm & Màu Sắc</th>
+                            <th>Trạng Thái</th>
+                            <th>Xóa</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordersTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 3: QUẢN LÝ MẪU LEN -->
+        <div id="tab-products" class="tab-content">
+            <h2 class="section-title">🧶 Quản Lý Mẫu Len (Quản Trị - Lưu Trọn Đời Trên Mây)</h2>
+            <div class="form-container">
+                <h3 id="formProductTitle" style="color: #6b4c35; margin-bottom: 15px;">Thêm Mẫu Đồ Len Mới</h3>
+                <input type="hidden" id="editingIndex" value="">
+                
+                <div class="form-group">
+                    <label>Tên sản phẩm:</label>
+                    <input type="text" id="newProdName" placeholder="Ví dụ: Thú bông gấu tai thỏ">
+                </div>
+                <div class="form-group">
+                    <label>Giá cơ bản (Cỡ vừa):</label>
+                    <input type="text" id="newProdPrice" placeholder="Ví dụ: 150.000 VNĐ">
+                </div>
+                <div class="form-group">
+                    <label>Hình ảnh (Chọn file từ thiết bị):</label>
+                    <input type="file" id="newProdFile" accept="image/*" onchange="handleImageUpload(event)">
+                    <img id="imgPreview" class="img-preview" alt="Preview">
+                </div>
+                
+                <button type="button" class="btn-main" onclick="saveProduct()" style="background: #ffb5a7; color: #5c3a21; margin-bottom: 10px;">Lưu Mẫu Len Lên Mây</button>
+                <button type="button" id="btnCancelEdit" class="btn-reset" onclick="resetProductForm()" style="display:none; width:100%;">Hủy Sửa</button>
+            </div>
+
+            <h3 style="color: #6b4c35; margin: 20px 0 10px;">Các Mẫu Len Hiện Có Trên Mây</h3>
+            <div style="text-align: right; margin-bottom: 10px;">
+                <button class="btn-reset" onclick="resetDefaultProducts()">Khôi Phục Mẫu Mặc Định</button>
+            </div>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Hình ảnh</th>
+                            <th>Tên Sản Phẩm</th>
+                            <th>Giá Cơ Bản</th>
+                            <th>Thao Tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminProductTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 4: CÀI ĐẶT -->
+        <div id="tab-settings" class="tab-content">
+            <h2 class="section-title">⚙️ Cài Đặt Cửa Hàng & Telegram</h2>
+            <div class="form-container">
+                <div class="form-group">
+                    <label>Tên Tiệm Handmade:</label>
+                    <input type="text" id="settingShopName">
+                </div>
+                <div class="form-group">
+                    <label>Mô tả / Slogan:</label>
+                    <input type="text" id="settingShopSub">
+                </div>
+                <div class="form-group">
+                    <label>Kiểu Chuông Báo Đơn Hàng Mới:</label>
+                    <select id="settingRingtone">
+                        <option value="bell">Tiếng Chuông (Ding đơn nhẹ nhàng)</option>
+                        <option value="chime">Tiếng Chime (Giai điệu vui tươi)</option>
+                        <option value="alarm">Tiếng Báo Động (Réo dồn dập)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Telegram Bot Token:</label>
+                    <input type="text" id="settingTelegramToken" placeholder="Nhập Token...">
+                </div>
+                <div class="form-group">
+                    <label>Telegram Chat ID:</label>
+                    <input type="text" id="settingTelegramChatId" placeholder="Nhập Chat ID...">
+                </div>
+                <div class="form-group">
+                    <label>Mật Khẩu Quản Trị:</label>
+                    <input type="text" id="settingAdminPass" placeholder="Mật khẩu vào quản lý...">
+                </div>
+                <button type="button" class="btn-main" onclick="saveSettings()" style="background: #ffb5a7; color: #5c3a21;">Lưu Thay Đổi</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- SCRIPT TÍCH HỢP FIREBASE (LƯU TRỌN ĐỜI TRÊN MÂY) -->
+    <script>
+        // Cấu hình Firebase của shop em
+        const firebaseConfig = {
+            apiKey: "AIzaSyBqFP1YDRdLRxyPaEPGnyn4RomG7ULeP4w",
+            authDomain: "onirique-store.firebaseapp.com",
+            projectId: "onirique-store",
+            storageBucket: "onirique-store.firebasestorage.app",
+            messagingSenderId: "1041982818419",
+            appId: "1:1041982818419:web:18021bcf1b95e7a1e74206",
+            measurementId: "G-09E0QHL5NQ"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        const initialProducts = [
+            { name: "Gấu Bông Len Đội Nón Thỏ", price: "180.000 VNĐ", image: "https://images.unsplash.com/photo-1563089145-599997674d42?w=500&q=80" },
+            { name: "Bó Hoa Len Tulip Handmade", price: "220.000 VNĐ", image: "https://images.unsplash.com/photo-1526047932273-341f2a7631f9?w=500&q=80" },
+            { name: "Móc Khóa Hoa Hướng Dương Len", price: "45.000 VNĐ", image: "https://images.unsplash.com/photo-1606293926075-69aa4544d724?w=500&q=80" }
+        ];
+
+        const STORAGE_KEY_ORD = 'onirique_store_orders_secure_v1';
+        const STORAGE_KEY_SET = 'onirique_store_settings_secure_v1';
+
+        let products = [];
+        let orders = JSON.parse(localStorage.getItem(STORAGE_KEY_ORD)) || [];
+        
+        let savedSettings = JSON.parse(localStorage.getItem(STORAGE_KEY_SET));
+        let settings = {
+            shopName: (savedSettings && savedSettings.shopName) ? savedSettings.shopName : "🧶 Onirique Store 🧶",
+            shopSub: (savedSettings && savedSettings.shopSub) ? savedSettings.shopSub : "Móc Khóa, Thú Bông Len, Hoa Len & Đồ Tự Móc Theo Yêu Cầu",
+            ringtone: (savedSettings && savedSettings.ringtone) ? savedSettings.ringtone : "bell",
+            telegramToken: (savedSettings && savedSettings.telegramToken) ? savedSettings.telegramToken : "8982896826:AAF0NhuazohLvn-JksN1_r8RPohZo8Bglm8",
+            telegramChatId: (savedSettings && savedSettings.telegramChatId) ? savedSettings.telegramChatId : "8881816264",
+            adminPassword: (savedSettings && savedSettings.adminPassword) ? savedSettings.adminPassword : "123"
+        };
+
+        let tempBase64Image = "";
+        let currentSelectedBasePrice = 0;
+
+        // Tải dữ liệu sản phẩm từ Firebase Firestore về
+        function initApp() {
+            const elName = document.getElementById('settingShopName');
+            const elSub = document.getElementById('settingShopSub');
+            const elRing = document.getElementById('settingRingtone');
+            const elToken = document.getElementById('settingTelegramToken');
+            const elChat = document.getElementById('settingTelegramChatId');
+            const elPass = document.getElementById('settingAdminPass');
+
+            if (elName) elName.value = settings.shopName;
+            if (elSub) elSub.value = settings.shopSub;
+            if (elRing) elRing.value = settings.ringtone;
+            if (elToken) elToken.value = settings.telegramToken;
+            if (elChat) elChat.value = settings.telegramChatId;
+            if (elPass) elPass.value = settings.adminPassword;
+            
+            const displayTitle = document.getElementById('displayShopName');
+            const displaySub = document.getElementById('displayShopSub');
+            if (displayTitle) displayTitle.innerText = settings.shopName;
+            if (displaySub) displaySub.innerText = settings.shopSub;
+
+            // Load sản phẩm từ mây
+            db.collection("products").get().then((querySnapshot) => {
+                products = [];
+                querySnapshot.forEach((doc) => {
+                    products.push({ id: doc.id, ...doc.data() });
+                });
+
+                if (products.length === 0) {
+                    initialProducts.forEach(p => {
+                        db.collection("products").add(p);
+                    });
+                    products = [...initialProducts];
+                }
+                renderHomeProducts();
+                if (products.length > 0) {
+                    selectProduct(products[0].name, products[0].price);
+                }
+            }).catch(err => {
+                console.error("Lỗi tải Firebase: ", err);
+            });
+        }
+
+        function openAdminMode() {
+            let pass = prompt("Nhập mật khẩu quản trị của chủ tiệm:");
+            if (pass === null) return;
+            
+            if (pass === settings.adminPassword) {
+                document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'block');
+                alert("🔓 Đăng nhập quản trị thành công!");
+                switchTab('orders');
+            } else {
+                alert("❌ Mật khẩu không chính xác!");
+            }
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-tabs button').forEach(el => el.classList.remove('active'));
+            
+            const targetTab = document.getElementById('tab-' + tabId);
+            const targetBtn = document.getElementById('btn-tab-' + tabId);
+            
+            if (targetTab) targetTab.classList.add('active');
+            if (targetBtn) targetBtn.classList.add('active');
+
+            if (tabId === 'orders') {
+                renderOrders();
+            } else if (tabId === 'products') {
+                renderAdminProducts();
+            }
+        }
+
+        function playAdminOrderSound() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.6);
+                gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.6);
+            } catch (e) {}
+        }
+
+        function playCustomerSuccessSound() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+            } catch (e) {}
+        }
+
+        function sendTelegramNotification(order) {
+            if (!settings.telegramToken || !settings.telegramChatId) return;
+            const text = `🧶 *CÓ ĐƠN HÀNG LEN MỚI - ONIRIQUE STORE* 🧶\n\n👤 *Khách hàng:* ${order.name}\n📞 *SĐT:* ${order.phone}\n📍 *Địa chỉ:* ${order.address}\n🎁 *Sản phẩm:* ${order.product}\n📝 *Yêu cầu riêng:* ${order.customNotes}\n⏰ *Thời gian nhận:* ${order.deliveryTime}`;
+            const proxyUrl = `https://api.allorigins.win/raw?url=` + encodeURIComponent(`https://api.telegram.org/bot${settings.telegramToken.trim()}/sendMessage?chat_id=${settings.telegramChatId.trim()}&text=` + encodeURIComponent(text) + `&parse_mode=Markdown`);
+            fetch(proxyUrl).catch(() => {});
+        }
+
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    tempBase64Image = evt.target.result;
+                    const preview = document.getElementById('imgPreview');
+                    if (preview) { preview.src = tempBase64Image; preview.style.display = 'block'; }
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function renderHomeProducts() {
+            const container = document.getElementById('product-list');
+            if (!container) return;
+            container.innerHTML = '';
+            products.forEach((p) => {
+                container.innerHTML += `
+                    <div class="product-card">
+                        <img src="${p.image}" alt="${p.name}">
+                        <h3>${p.name}</h3>
+                        <p>Từ ${p.price}</p>
+                        <button class="btn-select" onclick="selectProduct('${p.name.replace(/'/g, "\\'")}', '${p.price}')">Chọn Mẫu Này</button>
+                    </div>
+                `;
+            });
+        }
+
+        function parsePrice(priceStr) {
+            let num = parseInt(priceStr.replace(/\D/g, ''));
+            return isNaN(num) ? 0 : num;
+        }
+
+        function formatCurrency(num) {
+            return num.toLocaleString('vi-VN') + " VNĐ";
+        }
+
+        function selectProduct(name, priceStr) {
+            const selProd = document.getElementById('selectedProduct');
+            if (selProd) selProd.value = name;
+            currentSelectedBasePrice = parsePrice(priceStr);
+            updatePriceDisplay();
+            const orderSec = document.getElementById('order-section');
+            if (orderSec) orderSec.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function updatePriceDisplay() {
+            const sizeSel = document.getElementById('selectedSize');
+            const sizeVal = sizeSel ? sizeSel.value : "";
+            let finalPrice = currentSelectedBasePrice;
+            if (sizeVal.includes("Cỡ nhỏ")) finalPrice = Math.max(0, currentSelectedBasePrice - 30000);
+            else if (sizeVal.includes("Cỡ lớn")) finalPrice = currentSelectedBasePrice + 70000;
+            const dispPrice = document.getElementById('displayPrice');
+            if (dispPrice) dispPrice.innerText = "Tạm tính theo kích thước: " + formatCurrency(finalPrice);
+        }
+
+        function renderAdminProducts() {
+            const tbody = document.getElementById('adminProductTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            products.forEach((p, index) => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td><img src="${p.image}" style="width:50px; height:50px; object-fit:cover; border-radius:6px;"></td>
+                        <td><b>${p.name}</b></td>
+                        <td>${p.price}</td>
+                        <td>
+                            <button class="btn-edit" onclick="editProduct(${index})">Sửa</button>
+                            <button class="btn-danger" onclick="deleteProduct(${index})">Xóa</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Lưu mẫu mới lên Firebase Firestore (Vĩnh viễn)
+        function saveProduct() {
+            const name = document.getElementById('newProdName').value.trim();
+            const price = document.getElementById('newProdPrice').value.trim();
+            const editIndex = document.getElementById('editingIndex').value;
+
+            if (!name || !price) { alert("Vui lòng điền tên và giá!"); return; }
+
+            const productData = {
+                name: name,
+                price: price,
+                image: tempBase64Image || "https://images.unsplash.com/photo-1563089145-599997674d42?w=500&q=80"
+            };
+
+            if (editIndex !== "") {
+                let idx = parseInt(editIndex);
+                let id = products[idx].id;
+                db.collection("products").doc(id).update(productData).then(() => {
+                    alert("Đã cập nhật mẫu len thành công trên mây!");
+                    initApp();
+                    resetProductForm();
+                });
+            } else {
+                db.collection("products").add(productData).then(() => {
+                    alert("Đã thêm mẫu len mới lên mây thành công!");
+                    initApp();
+                    resetProductForm();
+                });
+            }
+        }
+
+        // Xóa mẫu trên Firebase
+        function deleteProduct(index) {
+            if (confirm("Xóa mẫu này khỏi mây?")) {
+                let id = products[index].id;
+                db.collection("products").doc(id).delete().then(() => {
+                    alert("Đã xóa thành công!");
+                    initApp();
+                });
+            }
+        }
+
+        function editProduct(index) {
+            const p = products[index];
+            document.getElementById('editingIndex').value = index;
+            document.getElementById('newProdName').value = p.name;
+            document.getElementById('newProdPrice').value = p.price;
+            document.getElementById('formProductTitle').innerText = "Chỉnh Sửa Mẫu";
+            document.getElementById('btnCancelEdit').style.display = "block";
+            tempBase64Image = p.image;
+        }
+
+        function resetProductForm() {
+            document.getElementById('editingIndex').value = "";
+            document.getElementById('newProdName').value = "";
+            document.getElementById('newProdPrice').value = "";
+            document.getElementById('newProdFile').value = "";
+            document.getElementById('imgPreview').style.display = 'none';
+            document.getElementById('formProductTitle').innerText = "Thêm Mẫu Đồ Len Mới";
+            document.getElementById('btnCancelEdit').style.display = 'none';
+            tempBase64Image = "";
+        }
+
+        function resetDefaultProducts() {
+            if (confirm("Khôi phục mẫu mặc định lên mây?")) {
+                // Xóa cũ và thêm lại mẫu mặc định
+                db.collection("products").get().then((snapshot) => {
+                    let batch = db.batch();
+                    snapshot.docs.forEach((doc) => {
+                        batch.delete(doc.ref);
+                    });
+                    return batch.commit();
+                }).then(() => {
+                    initialProducts.forEach(p => {
+                        db.collection("products").add(p);
+                    });
+                    alert("Đã khôi phục mẫu mặc định!");
+                    setTimeout(() => initApp(), 1000);
+                });
+            }
+        }
+
+        function saveSettings() {
+            settings.shopName = document.getElementById('settingShopName').value.trim();
+            settings.shopSub = document.getElementById('settingShopSub').value.trim();
+            settings.ringtone = document.getElementById('settingRingtone').value;
+            settings.telegramToken = document.getElementById('settingTelegramToken').value.trim();
+            settings.telegramChatId = document.getElementById('settingTelegramChatId').value.trim();
+            settings.adminPassword = document.getElementById('settingAdminPass').value.trim() || "123";
+
+            localStorage.setItem(STORAGE_KEY_SET, JSON.stringify(settings));
+            document.getElementById('displayShopName').innerText = settings.shopName;
+            document.getElementById('displayShopSub').innerText = settings.shopSub;
+            alert("Đã lưu cài đặt!");
+            switchTab('home');
+        }
+
+        // Xử lý khi khách bấm gửi đơn hàng
+        document.getElementById('handmadeOrderForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const prodName = document.getElementById('selectedProduct').value;
+            if (!prodName) {
+                alert("Vui lòng chọn mẫu sản phẩm ở phía trên!");
+                return;
+            }
+
+            const newOrder = {
+                id: Date.now(),
+                time: new Date().toLocaleDateString('vi-VN') + ' ' + new Date().toLocaleTimeString('vi-VN'),
+                product: `${prodName} - Màu: ${document.getElementById('selectedColor').value} (${document.getElementById('selectedSize').value})`,
+                name: document.getElementById('customerName').value.trim(),
+                phone: document.getElementById('customerPhone').value.trim(),
+                address: document.getElementById('customerAddress').value.trim(),
+                customNotes: document.getElementById('customNotes').value.trim() || "Không",
+                deliveryTime: "Shop báo tiến độ sau",
+                status: "Chờ xác nhận"
+            };
+
+            orders.unshift(newOrder);
+            localStorage.setItem(STORAGE_KEY_ORD, JSON.stringify(orders));
+            
+            playCustomerSuccessSound(); 
+            playAdminOrderSound();     
+
+            sendTelegramNotification(newOrder);
+
+            alert("🎉 Gửi đơn hàng thành công! Cảm ơn bạn đã ủng hộ tiệm.");
+            this.reset();
+            if (products.length > 0) selectProduct(products[0].name, products[0].price);
+        });
+
+        function renderOrders() {
+            const tbody = document.getElementById('ordersTableBody');
+            const countBadge = document.getElementById('orderCount');
+            if (countBadge) countBadge.innerText = orders.length;
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            
+            if (orders.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center;">Chưa có đơn hàng nào.</td></tr>`;
+                return;
+            }
+
+            orders.forEach((ord, index) => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td><small>${ord.time}</small></td>
+                        <td><b>${ord.name}</b><br>📞 ${ord.phone}<br><small>${ord.address}</small></td>
+                        <td>${ord.product}<br><small style="color:#d87093;">Yêu cầu: ${ord.customNotes}</small></td>
+                        <td><span style="background:#fff3cd; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:0.8rem;">${ord.status}</span></td>
+                        <td><button class="btn-danger" onclick="deleteOrder(${index})">Xóa</button></td>
+                    </tr>
+                `;
+            });
+        }
+
+        function deleteOrder(index) {
+            if (confirm("Xóa đơn hàng này?")) {
+                orders.splice(index, 1);
+                localStorage.setItem(STORAGE_KEY_ORD, JSON.stringify(orders));
+                renderOrders();
+            }
+        }
+
+        function clearAllOrders() {
+            if (confirm("Xóa toàn bộ danh sách đơn hàng?")) {
+                orders = [];
+                localStorage.removeItem(STORAGE_KEY_ORD);
+                renderOrders();
+            }
+        }
+
+        function searchMyOrder() {
+            const phone = document.getElementById('searchCustomerPhone').value.trim();
+            const resultBox = document.getElementById('customerSearchResult');
+            if (!phone) { alert("Vui lòng nhập số điện thoại để tra cứu!"); return; }
+
+            const found = orders.filter(o => o.phone === phone);
+            resultBox.style.display = 'block';
+            if (found.length === 0) {
+                resultBox.innerHTML = `<p style="color: #ff6b6b; font-weight: bold;">Không tìm thấy đơn hàng nào với số điện thoại: ${phone}</p>`;
+                return;
+            }
+
+            let html = `<b style="color: #d87093;">🔍 Tìm thấy ${found.length} đơn hàng:</b><br><hr style="margin: 8px 0; border-color:#ffccd5;">`;
+            found.forEach(o => {
+                html += `<div style="margin-bottom: 8px;"><small>📅 ${o.time}</small><br><b>${o.product}</b><br>Trạng thái: <span style="color:#ff597b; font-weight:bold;">${o.status}</span></div>`;
+            });
+            resultBox.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
